@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Habit Tracker</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f13;
+      --surface: #1a1a24;
+      --card: #22222f;
+      --border: #2e2e40;
+      --accent: #7c6af7;
+      --accent-dim: #3d3580;
+      --green: #34d399;
+      --green-dim: #064e3b;
+      --text: #e8e8f0;
+      --muted: #7878a0;
+      --danger: #f87171;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px 16px 60px;
+    }
+
+    .container { max-width: 540px; margin: 0 auto; }
+
+    header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-bottom: 32px;
+    }
+    header h1 { font-size: 1.8rem; font-weight: 700; letter-spacing: -0.5px; }
+    header h1 span { color: var(--accent); }
+    .date-label { font-size: 0.85rem; color: var(--muted); padding-bottom: 4px; }
+
+    .progress-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 24px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .ring-wrap { position: relative; flex-shrink: 0; width: 72px; height: 72px; }
+    .ring-wrap svg { transform: rotate(-90deg); }
+    .ring-bg { fill: none; stroke: var(--border); stroke-width: 7; }
+    .ring-fg { fill: none; stroke: var(--accent); stroke-width: 7; stroke-linecap: round;
+      transition: stroke-dashoffset 0.5s ease; }
+    .ring-pct {
+      position: absolute; inset: 0; display: flex;
+      align-items: center; justify-content: center;
+      font-weight: 700; font-size: 1rem;
+    }
+    .progress-info h2 { font-size: 1.1rem; font-weight: 600; margin-bottom: 4px; }
+    .progress-info p { font-size: 0.85rem; color: var(--muted); }
+
+    .add-form {
+      display: flex; gap: 8px; margin-bottom: 20px;
+    }
+    .add-form input {
+      flex: 1; padding: 12px 16px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; color: var(--text); font-size: 0.95rem;
+      outline: none; transition: border-color 0.2s;
+    }
+    .add-form input:focus { border-color: var(--accent); }
+    .add-form input::placeholder { color: var(--muted); }
+    .btn-add {
+      padding: 12px 20px; background: var(--accent); color: #fff;
+      border: none; border-radius: 12px; font-size: 1.2rem;
+      cursor: pointer; transition: opacity 0.15s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .btn-add:hover { opacity: 0.85; }
+
+    .section-label {
+      font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 1px; color: var(--muted); margin-bottom: 10px;
+    }
+
+    .habits-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .habit-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 14px 16px;
+      display: flex; align-items: center; gap: 14px;
+      transition: border-color 0.2s;
+      animation: slideIn 0.25s ease;
+    }
+    .habit-card.done { border-color: var(--green-dim); background: #0d2a20; }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .check-btn {
+      width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--border);
+      background: transparent; cursor: pointer; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; transition: all 0.2s;
+    }
+    .habit-card.done .check-btn {
+      background: var(--green); border-color: var(--green); color: #000;
+    }
+    .check-btn:hover { border-color: var(--green); }
+
+    .habit-info { flex: 1; min-width: 0; }
+    .habit-name {
+      font-size: 0.95rem; font-weight: 500;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .habit-card.done .habit-name { color: var(--muted); text-decoration: line-through; }
+    .habit-streak {
+      font-size: 0.75rem; color: var(--muted); margin-top: 2px;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .habit-streak.hot { color: #fb923c; }
+
+    .delete-btn {
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); font-size: 1rem; padding: 4px 6px;
+      border-radius: 6px; transition: color 0.15s, background 0.15s;
+      opacity: 0;
+    }
+    .habit-card:hover .delete-btn { opacity: 1; }
+    .delete-btn:hover { color: var(--danger); background: rgba(248,113,113,0.1); }
+
+    .empty-state {
+      text-align: center; padding: 40px 0; color: var(--muted);
+    }
+    .empty-state .icon { font-size: 2.5rem; margin-bottom: 10px; }
+    .empty-state p { font-size: 0.9rem; }
+
+    .footer-note {
+      text-align: center; margin-top: 32px;
+      font-size: 0.75rem; color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>daily<span>.</span>habits</h1>
+    <span class="date-label" id="dateLabel"></span>
+  </header>
+
+  <div class="progress-card">
+    <div class="ring-wrap">
+      <svg width="72" height="72" viewBox="0 0 72 72">
+        <circle class="ring-bg" cx="36" cy="36" r="30" />
+        <circle class="ring-fg" id="ringFg" cx="36" cy="36" r="30"
+          stroke-dasharray="188.5" stroke-dashoffset="188.5" />
+      </svg>
+      <div class="ring-pct" id="ringPct">0%</div>
+    </div>
+    <div class="progress-info">
+      <h2 id="progressHeading">No habits yet</h2>
+      <p id="progressSub">Add your first habit below</p>
+    </div>
+  </div>
+
+  <div class="add-form">
+    <input type="text" id="newHabitInput" placeholder="e.g. Drink 8 glasses of water" maxlength="60" />
+    <button class="btn-add" id="addBtn" title="Add habit">+</button>
+  </div>
+
+  <div class="section-label">Today</div>
+  <div class="habits-list" id="habitsList"></div>
+
+  <div class="footer-note">Streaks reset each day · Progress is saved in your browser</div>
+</div>
+
+<script>
+  const CIRC = 2 * Math.PI * 30; // 188.5
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  function todayKey() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem('habittracker_v2');
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return { habits: [], completions: {} };
+  }
+
+  function saveState() {
+    try { localStorage.setItem('habittracker_v2', JSON.stringify(state)); } catch {}
+  }
+
+  let state = loadState();
+
+  // Seed with example habits on first load
+  if (state.habits.length === 0) {
+    state.habits = [
+      { id: uid(), name: 'Drink 8 glasses of water', createdAt: todayKey() },
+      { id: uid(), name: 'Read for 20 minutes',      createdAt: todayKey() },
+      { id: uid(), name: 'Go for a walk',            createdAt: todayKey() },
+    ];
+    saveState();
+  }
+
+  function uid() { return Math.random().toString(36).slice(2, 9); }
+
+  // ── Completions ───────────────────────────────────────────────────────────
+  function getToday() {
+    const k = todayKey();
+    if (!state.completions[k]) state.completions[k] = {};
+    return state.completions[k];
+  }
+
+  function isCompleted(id) { return !!getToday()[id]; }
+
+  function toggle(id) {
+    const today = getToday();
+    if (today[id]) delete today[id]; else today[id] = true;
+    saveState();
+    render();
+  }
+
+  // ── Streaks ───────────────────────────────────────────────────────────────
+  function streakFor(id) {
+    let streak = 0;
+    const base = new Date();
+    // Don't count today; count backwards from yesterday
+    for (let i = 1; i <= 365; i++) {
+      const d = new Date(base); d.setDate(d.getDate() - i);
+      const k = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      if (state.completions[k]?.[id]) streak++;
+      else break;
+    }
+    // Add today if completed
+    if (isCompleted(id)) streak++;
+    return streak;
+  }
+
+  // ── Prune old completions (keep 90 days) ─────────────────────────────────
+  function pruneOld() {
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 90);
+    for (const k of Object.keys(state.completions)) {
+      const [y, m, d] = k.split('-').map(Number);
+      if (new Date(y, m-1, d) < cutoff) delete state.completions[k];
+    }
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  function render() {
+    const list = document.getElementById('habitsList');
+    const { habits } = state;
+    const total = habits.length;
+    const done  = habits.filter(h => isCompleted(h.id)).length;
+    const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
+
+    // Ring
+    const offset = CIRC - (CIRC * pct / 100);
+    document.getElementById('ringFg').style.strokeDashoffset = offset;
+    document.getElementById('ringPct').textContent = pct + '%';
+
+    // Progress text
+    const heading = document.getElementById('progressHeading');
+    const sub     = document.getElementById('progressSub');
+    if (total === 0) {
+      heading.textContent = 'No habits yet';
+      sub.textContent = 'Add your first habit below';
+    } else if (done === total) {
+      heading.textContent = '🎉 All done today!';
+      sub.textContent = `${done} of ${total} habits completed`;
+    } else {
+      heading.textContent = `${done} of ${total} completed`;
+      sub.textContent = done === 0 ? "Let's get started!" : 'Keep it up!';
+    }
+
+    // List
+    if (total === 0) {
+      list.innerHTML = `<div class="empty-state"><div class="icon">✦</div><p>No habits tracked yet.<br>Add one above to get started.</p></div>`;
+      return;
+    }
+
+    list.innerHTML = '';
+    habits.forEach(h => {
+      const completed = isCompleted(h.id);
+      const streak = streakFor(h.id);
+      const card = document.createElement('div');
+      card.className = 'habit-card' + (completed ? ' done' : '');
+      card.innerHTML = `
+        <button class="check-btn" data-id="${h.id}" aria-label="Toggle ${h.name}">
+          ${completed ? '✓' : ''}
+        </button>
+        <div class="habit-info">
+          <div class="habit-name">${escHtml(h.name)}</div>
+          <div class="habit-streak ${streak >= 3 ? 'hot' : ''}">
+            ${streak > 0 ? `🔥 ${streak}-day streak` : 'Start your streak today!'}
+          </div>
+        </div>
+        <button class="delete-btn" data-del="${h.id}" aria-label="Delete habit">✕</button>
+      `;
+      list.appendChild(card);
+    });
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Events ────────────────────────────────────────────────────────────────
+  document.getElementById('habitsList').addEventListener('click', e => {
+    const chk = e.target.closest('[data-id]');
+    if (chk) { toggle(chk.dataset.id); return; }
+    const del = e.target.closest('[data-del]');
+    if (del) {
+      state.habits = state.habits.filter(h => h.id !== del.dataset.del);
+      saveState(); render();
+    }
+  });
+
+  function addHabit() {
+    const input = document.getElementById('newHabitInput');
+    const name = input.value.trim();
+    if (!name) { input.focus(); return; }
+    state.habits.push({ id: uid(), name, createdAt: todayKey() });
+    saveState(); render();
+    input.value = '';
+    input.focus();
+  }
+
+  document.getElementById('addBtn').addEventListener('click', addHabit);
+  document.getElementById('newHabitInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addHabit();
+  });
+
+  // ── Date label ───────────────────────────────────────────────────────────
+  const days   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const now    = new Date();
+  document.getElementById('dateLabel').textContent =
+    `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}`;
+
+  pruneOld();
+  render();
+</script>
+</body>
+</html>
